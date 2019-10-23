@@ -28,5 +28,7 @@ class Trainer(object):
             training_set = Dataset(X, y, self.bs)
             while training_set.last_batch():
                 # Transfer to GPU
-                # import pdb; pdb.set_trace()
-                X, y = X.to(device), y.to(device)
+                X_batch, y_batch, y_mask_batch, lens_batch = training_set.next_batch()
+                X_batch, y_batch, y_mask_batch, lens_batch = X_batch.to(self.device), y_batch.to(self.device), y_mask_batch.to(self.device), lens_batch.to(self.device)
+                # print(training_set.cur_idx)
+                

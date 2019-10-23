@@ -34,14 +34,18 @@ class Dataset():
 
 
     def last_batch(self):
+        if self.cur_idx > self.X.shape[0]:
+            return False
+        else:
+            return True
 
     def next_batch(self):
         'Generates one sample of data'
         if self.cur_idx+self.bs>self.X.shape[0]:
-            tmp_data = torch.tensor(self.X[self.cur_idx:]), torch.tensor(self.y[self.cur_idx:]), torch.tensor(self.y_mask[self.cur_idx:]), self.lens[self.cur_idx:]
+            tmp_data = torch.tensor(self.X[self.cur_idx:]), torch.tensor(self.y[self.cur_idx:]), torch.tensor(self.y_mask[self.cur_idx:]), torch.tensor(self.lens[self.cur_idx:]).long()
         else:
-            tmp_data = torch.tensor(self.X[self.cur_idx:self.cur_idx + self.bs]), torch.tensor(self.y[self.cur_idx:self.cur_idx + self.bs]), torch.tensor(self.y_mask[self.cur_idx:self.cur_idx+self.bs]), self.lens[self.cur_idx:self.cur_idx+self.bs]
+            tmp_data = torch.tensor(self.X[self.cur_idx:self.cur_idx + self.bs]), torch.tensor(self.y[self.cur_idx:self.cur_idx + self.bs]), torch.tensor(self.y_mask[self.cur_idx:self.cur_idx+self.bs]), torch.tensor(self.lens[self.cur_idx:self.cur_idx+self.bs]).long()
 
         self.cur_idx += self.bs
 
-        return tmp
+        return tmp_data
