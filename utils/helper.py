@@ -111,4 +111,4 @@ def get_data(path_to_data = '..\\data\\strokes.npy'):
 	train_x, train_y = create_xy(train_norm)
 	test_x, test_y = create_xy(test_norm)
 	print(train.shape, test.shape, train_x.shape, train_y.shape, test_x.shape, test_y.shape, train[0].shape, train_x[0].shape)
-	return train_x, train_y, test_x, test_y
+	return train_x, train_y, test_x, test_y, train_mean, train_std
