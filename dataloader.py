@@ -12,9 +12,11 @@ class Dataset():
         self.bs = bs
         self.lens = [sample.shape[0] for sample in X]
         self.max_len = max(self.lens)
-        
-        self.X, _ = self.pad_data(X, self.lens, self.max_len)
-        self.y, self.y_mask = self.pad_data(y, self.lens, self.max_len)
+        self.X = X
+        self.y = y
+
+        # self.X, _ = self.pad_data(X, self.lens, self.max_len)
+        # self.y, self.y_mask = self.pad_data(y, self.lens, self.max_len)
         
         print(self.X.shape, self.y.shape)
 
@@ -30,7 +32,7 @@ class Dataset():
 
         # import pdb; pdb.set_trace()
 
-        return seq_tensor, mask
+        return torch.tensor(seq_tensor), torch.tensor(mask)
 
 
     def last_batch(self):
@@ -42,10 +44,24 @@ class Dataset():
     def next_batch(self):
         'Generates one sample of data'
         if self.cur_idx+self.bs>self.X.shape[0]:
-            tmp_data = torch.tensor(self.X[self.cur_idx:]), torch.tensor(self.y[self.cur_idx:]), torch.tensor(self.y_mask[self.cur_idx:]), torch.tensor(self.lens[self.cur_idx:]).long()
-        else:
-            tmp_data = torch.tensor(self.X[self.cur_idx:self.cur_idx + self.bs]), torch.tensor(self.y[self.cur_idx:self.cur_idx + self.bs]), torch.tensor(self.y_mask[self.cur_idx:self.cur_idx+self.bs]), torch.tensor(self.lens[self.cur_idx:self.cur_idx+self.bs]).long()
+            X_batch = self.X[self.cur_idx:]
+            y_batch = self.y[self.cur_idx:]
 
+            lens = self.lens[self.cur_idx:]
+            X_batch,_ = self.pad_data(X_batch, lens, max(lens))
+            y_batch, y_mask = self.pad_data(y_batch, lens, max(lens))
+            # tmp_data = torch.tensor(self.X[self.cur_idx:]), torch.tensor(self.y[self.cur_idx:]), torch.tensor(self.y_mask[self.cur_idx:]), torch.tensor(self.lens[self.cur_idx:]).long()
+        else:
+            # tmp_data = torch.tensor(self.X[self.cur_idx:self.cur_idx + self.bs]), torch.tensor(self.y[self.cur_idx:self.cur_idx + self.bs]), torch.tensor(self.y_mask[self.cur_idx:self.cur_idx+self.bs]), torch.tensor(self.lens[self.cur_idx:self.cur_idx+self.bs]).long()
+            X_batch = self.X[self.cur_idx:self.cur_idx + self.bs]
+            y_batch = self.y[self.cur_idx:self.cur_idx + self.bs]
+
+            lens = self.lens[self.cur_idx:self.cur_idx + self.bs]
+            # print([i for i in range(len(lens)) if lens[i]==max(lens)])
+            X_batch,_ = self.pad_data(X_batch, lens, max(lens))
+            y_batch, y_mask = self.pad_data(y_batch, lens, max(lens))
+
+        lens = torch.tensor(lens).long()
         self.cur_idx += self.bs
 
-        return tmp_data
+        return X_batch, y_batch, y_mask, lens

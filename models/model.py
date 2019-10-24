@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence
 
 class Model(nn.Module):
 	"""docstring for Model"""
@@ -18,19 +19,35 @@ class Model(nn.Module):
 		
 		self.l1 = nn.Linear(num_layers * hidden_units, out_dim)
 
-	def forward(self, X):
+	def forward(self, X, lens):
+		# import pdb; pdb.set_trace()
 
-		out, _ = self.layer1(X)
-		outs = [out]
+		lens, perm_idx = lens.sort(0, descending=True)
+		X = X[perm_idx]
+		X = X.float()
+		# print(X.type())
+		# import pdb; pdb.set_trace()
+		packed_input = pack_padded_sequence(X, lens.cpu().numpy(), batch_first=True)
+
+		# import pdb; pdb.set_trace()
+		out, _ = self.layer1(packed_input)
+		# import pdb; pdb.set_trace()
+		output, input_sizes = pad_packed_sequence(out, batch_first=True)
+
+		outs = [output]
 
 		# import pdb; pdb.set_trace()
 		
 		for layer in self.layers:
-			x_out = torch.cat((X,out), dim=2)
+			x_out = torch.cat((X,output), dim=2)
 			# import pdb; pdb.set_trace()
-			out, _ = layer(x_out)
+			packed_input = pack_padded_sequence(x_out, lens.cpu().numpy(), batch_first=True)
 			# import pdb; pdb.set_trace()
-			outs.append(out)
+			out, _ = layer(packed_input)
+			# import pdb; pdb.set_trace()
+			output, input_sizes = pad_packed_sequence(out, batch_first=True)
+			# import pdb; pdb.set_trace()
+			outs.append(output)
 		# import pdb; pdb.set_trace()
 		all_outs = torch.cat(outs, dim = 2)
 		# import pdb; pdb.set_trace()

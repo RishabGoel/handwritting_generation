@@ -8,9 +8,9 @@ parser = argparse.ArgumentParser(description='PyTorch LSTM Language Model')
 
 parser.add_argument('-bs', type=int, default='64',
                     help='Batch size to be used for training')
-parser.add_argument('-hidden_units', type=int, default=256,
+parser.add_argument('-hidden_units', type=int, default=128,
                     help='size of hidden layers of lstm')
-parser.add_argument('-num_layers', type=int, default=1,
+parser.add_argument('-num_layers', type=int, default=2,
                     help='numberof lstm layers to be used')
 parser.add_argument('-inp_dim', type=int, default=3,
                     help='input dimension to lstm')
