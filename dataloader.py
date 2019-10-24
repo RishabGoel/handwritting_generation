@@ -23,7 +23,7 @@ class Dataset():
 
     def pad_data(self, data, lens, max_len):
         seq_tensor = np.zeros((data.shape[0], max_len, data[0].shape[-1]))
-        mask = np.zeros((data.shape[0], max_len, data[0].shape[-1]))
+        mask = np.zeros((data.shape[0], max_len))
         # import pdb; pdb.set_trace()        
         
         for i in range(data.shape[0]):

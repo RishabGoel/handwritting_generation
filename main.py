@@ -22,6 +22,8 @@ parser.add_argument('-lr', type=float, default=0.001,
                     help='learning rate to be used for training the model')
 parser.add_argument('-seed', type=int, default=1111,
                     help='random seed')
+parser.add_argument('-num_mixtures', type=int, default=20,
+                    help='Number of mixtures to be use')
 
 args = parser.parse_args()
 
