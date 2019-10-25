@@ -36,7 +36,7 @@ class Dataset():
 
 
     def last_batch(self):
-        if self.cur_idx > self.X.shape[0]:
+        if self.cur_idx >= self.X.shape[0]:
             return False
         else:
             return True

@@ -38,7 +38,7 @@ def main(args):
     print(args)
     # Train Model
     trainer = Trainer(args)
-    trainer.fit(train_x, train_y)
+    trainer.fit(train_x, train_y, test_x, test_y, train_mean, train_std)
     return
 
 main(args)

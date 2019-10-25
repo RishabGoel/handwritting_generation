@@ -4,6 +4,46 @@ import torch.nn as nn
 from torch.utils import data
 from models.model import *
 from dataloader import Dataset
+import utils.helper as utils
+# import numpy
+from matplotlib import pyplot
+
+
+def plot_stroke(stroke, save_name=None):
+    # Plot a single example.
+    f, ax = pyplot.subplots()
+
+    x = np.cumsum(stroke[:, 1])
+    y = np.cumsum(stroke[:, 2])
+
+    size_x = x.max() - x.min() + 1.
+    size_y = y.max() - y.min() + 1.
+
+    f.set_size_inches(5. * size_x / size_y, 5.)
+
+    cuts = np.where(stroke[:, 0] == 1)[0]
+    start = 0
+
+    for cut_value in cuts:
+        ax.plot(x[start:cut_value], y[start:cut_value],
+                'k-', linewidth=3)
+        start = cut_value + 1
+    ax.axis('equal')
+    ax.axes.get_xaxis().set_visible(False)
+    ax.axes.get_yaxis().set_visible(False)
+
+    if save_name is None:
+        pyplot.show()
+    else:
+        try:
+            pyplot.savefig(
+                save_name,
+                bbox_inches='tight',
+                pad_inches=0.5)
+        except Exception:
+            print("Error building image!: " + save_name)
+
+    pyplot.close()
 
 class Trainer(object):
     """docstring for Trainer"""
@@ -18,7 +58,13 @@ class Trainer(object):
         self.num_layers = args.num_layers
         self.device = 'cpu'
         self.num_mixtures = args.num_mixtures
-        self.model = Model(self.inp_dim, self.hidden_units, self.out_dim, self.num_layers, self.num_mixtures)
+        self.model = Model(self.inp_dim, self.hidden_units, self.out_dim, self.num_layers, self.num_mixtures).to(self.device)
+        self.validation_score = np.inf
+        self.valid_low_count = 0
+        self.valid_low_count_max = 5
+        self.optimizer = torch.optim.Adam(self.model.parameters())
+        self.bce = nn.BCELoss(reduction='none')
+        self.path = 'model'
     
 
     def get_likelihood(self, e, ro, pi, mu, sigma, y_true):
@@ -53,20 +99,21 @@ class Trainer(object):
         z_xy = -2 * ro * (cood_y - mu_y) * (cood_x - mu_x) * reci_sigma_xy
         # import pdb; pdb.set_trace()
         z = z_xx + z_yy + z_xy
-        import pdb; pdb.set_trace()
+        # import pdb; pdb.set_trace()
         exp_term = torch.exp(-1 * z * exp_denom_ro)
         N = torch.sum(norm_denom_ro * exp_term * pi, dim = 2)
-        import pdb; pdb.set_trace()
+        # import pdb; pdb.set_trace()
         N = -1 * torch.log(N + 1e-20)
         # import pdb; pdb.set_trace()
 
         return N
 
-    def fit(self, X, y):
-
+    def fit(self, X, y, test_X, test_y, train_mean, train_std):
+        # plot_stroke(utils.un_normalize_data(X[:1], train_mean, train_std)[0])
+        # ll
         # optimizer = torch.optim.RMSprop(self.model.parameters())
-        optimizer = torch.optim.Adam(self.model.parameters())
-        bce = nn.BCELoss(reduction='none')
+        # optimizer = torch.optim.Adam(self.model.parameters())
+        # bce = nn.BCELoss(reduction='none')
 
         for epoch in range(self.epochs):
             training_set = Dataset(X, y, self.bs)
@@ -87,18 +134,65 @@ class Trainer(object):
 
                 y_mask_batch = y_mask_batch.reshape(-1)
 
-                ber_loss = bce(e, y_ber_truth)
+                ber_loss = self.bce(e, y_ber_truth)
                 loss_sum = torch.sum(N*y_mask_batch) + torch.sum(ber_loss * y_mask_batch)
                 loss = loss_sum / torch.sum(lens_batch)
                 print(loss, loss_sum)
 
-                optimizer.zero_grad()
+                self.optimizer.zero_grad()
                 loss.backward()
                 nn.utils.clip_grad_norm_(self.model.parameters(), 10)
 
-                optimizer.step()
+                self.optimizer.step()
                 
-                if epoch % 5 == 0:
-                    print(epoch, loss.data[0])
-                break
+            if epoch % 5 == 0:
+                to_stop = self.validate(test_X, test_y, epoch)
+                # self.create_stroke()
+                if to_stop:
+                    break
+            break
+
+    def validate(self, test_x, test_y, epoch_id):
+        '''
+        This function print the validation loss after specified number of epochs and implements early stopping
+        '''
+        self.model.eval()
+        test_set = Dataset(test_x, test_y, test_y.shape)
+        total_loss = 0.0
+        while test_set.last_batch():
+            # Transfer to GPU
+            X_batch, y_batch, y_mask_batch, lens_batch = test_set.next_batch()
+            X_batch, y_batch, y_mask_batch, lens_batch = X_batch.to(self.device), y_batch.to(self.device), y_mask_batch.to(self.device), lens_batch.to(self.device)
+            # print(training_set.cur_idx)
+            e,ro,pi,mu,sigma = self.model(X_batch, lens_batch)
+            # import pdb; pdb.set_trace()
+            
+            N = self.get_likelihood(e,ro,pi,mu,sigma, y_batch)
+            N = N.reshape(-1)
+            
+            y_ber_truth = y_batch[:,:,0].reshape(-1).float()
+            
+            e = e.reshape(-1)
+
+            y_mask_batch = y_mask_batch.reshape(-1)
+
+            ber_loss = bce(e, y_ber_truth)
+            loss_sum = torch.sum(N*y_mask_batch) + torch.sum(ber_loss * y_mask_batch)
+            loss = loss_sum / torch.sum(lens_batch)
+            total_loss += list(loss.cpu().data.numpy().flatten())[0]
+        self.model.train()
+        print("Validation loss after ", epoch_id, " epochs : ", loss.data)
+        if total_loss < self.validation_score:
+            self.validation_score == total_loss
+            self.valid_low_count = 0
+            torch.save(self.model.state_dict(), self.path+str(epoch_id)+".pt")
+        else:
+            self.valid_low_count += 1
+            print("Early stopping count increased from ", self.valid_low_count-1, ' to ', self.valid_low_count)
+
+        if self.valid_low_count >=self.valid_low_count_max:
+            return True
+        else:
+            return False
+
 
