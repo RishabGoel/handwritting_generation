@@ -1,9 +1,9 @@
 import argparse
 import torch
 
-from utils.helper import *
-from trainer import Trainer
-from tester import Tester
+from utils.cond_helper import *
+# from cond_trainer import Trainer
+# from cond_tester import Tester
 
 parser = argparse.ArgumentParser(description='PyTorch LSTM Language Model')
 
@@ -39,13 +39,16 @@ torch.cuda.manual_seed(args.seed)
 
 def main(args):
     print("in main")
-    train_x, train_y, test_x, test_y, train_mean, train_std = get_data('data\\strokes.npy')
-    print(args)
+    train_x, train_y, train_y_mask, train_text, \
+            train_text_mask, test_x, test_y, test_y_mask, test_text, test_text_mask = get_data('data\\strokes.npy', 'data\\sentences.txt')
+    # print(args)
+    # import pdb; pdb.set_trace()
     # Train Model
     trainer = Trainer(args)
-    trainer.fit(train_x, train_y, test_x, test_y, train_mean, train_std)
-    tester = Tester(args, '', '')
-    tester.generate()
+    trainer.fit(train_x, train_y, train_y_mask, train_text, \
+            train_text_mask, test_x, test_y, test_y_mask, test_text, test_text_mask, None, None)
+    # tester = Tester(args, '', '')
+    # tester.generate()
     return
 
 main(args)

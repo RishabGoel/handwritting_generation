@@ -2,7 +2,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 from torch.utils import data
-from models.model import *
+from models.cond_model import *
 from dataloader import Dataset
 import utils.helper as utils
 # import numpy
@@ -87,8 +87,8 @@ class Trainer(object):
                 X_batch, y_batch, y_mask_batch, lens_batch = training_set.next_batch()
                 X_batch, y_batch, y_mask_batch, lens_batch = X_batch.to(self.device), y_batch.to(self.device), y_mask_batch.to(self.device), lens_batch.to(self.device)
                 # print(training_set.cur_idx)
-                e,ro,pi,mu,sigma, _ = self.model(X_batch, lens_batch)
-                # import pdb; pdb.set_trace()
+                e,ro,pi,mu,sigma, _, _ = self.model(X_batch, lens_batch)
+                import pdb; pdb.set_trace()
                 
                 N = self.get_likelihood(e,ro,pi,mu,sigma, y_batch)
                 N = N.reshape(-1)

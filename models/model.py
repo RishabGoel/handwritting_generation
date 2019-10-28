@@ -10,6 +10,8 @@ class Model(nn.Module):
 		self.num_layers = num_layers
 		self.inp_dim = inp_dim
 		self.out_dim = out_dim
+		self.hidden_units = hidden_units
+		self.device = 'cuda'
 		self.layer1 = nn.LSTM(inp_dim, hidden_units, batch_first = True)
 		self.layers = []
 		for layer_num in range(1, num_layers):
@@ -28,9 +30,18 @@ class Model(nn.Module):
 		self.softmax = nn.Softmax(dim = 2)
 		self.sigmoid = nn.Sigmoid()
 
-	def forward(self, X, lens):
-		# import pdb; pdb.set_trace()
+	def init_hidden_cell_state(self, bs):
+		hc_lst = []
+		
+		for i in range(self.num_layers):
+			hc_lst.append((torch.zeros(1,bs,self.hidden_units).to(self.device), torch.zeros(1,bs,self.hidden_units).to(self.device)))
 
+		return hc_lst
+
+	def forward(self, X, lens, hc_lst = None):
+		# import pdb; pdb.set_trace()
+		if hc_lst is None:
+			hc_lst = self.init_hidden_cell_state(X.shape[0])
 		lens, perm_idx = lens.sort(0, descending=True)
 		X = X[perm_idx]
 		X = X.float()
@@ -39,24 +50,27 @@ class Model(nn.Module):
 		packed_input = pack_padded_sequence(X, lens.cpu().numpy(), batch_first=True)
 
 		# import pdb; pdb.set_trace()
-		out, _ = self.layer1(packed_input)
+		out, hc_1 = self.layer1(packed_input, hc_lst[0])
+		final_hc_lst = [hc_1]
 		# import pdb; pdb.set_trace()
 		output, input_sizes = pad_packed_sequence(out, batch_first=True)
 
 		outs = [output]
 
 		# import pdb; pdb.set_trace()
-		
+		idx = 1
 		for layer in self.layers:
 			x_out = torch.cat((X,output), dim=2)
 			# import pdb; pdb.set_trace()
 			packed_input = pack_padded_sequence(x_out, lens.cpu().numpy(), batch_first=True)
 			# import pdb; pdb.set_trace()
-			out, _ = layer(packed_input)
+			out, hc = layer(packed_input, hc_lst[idx])
+			final_hc_lst.append(hc)
 			# import pdb; pdb.set_trace()
 			output, input_sizes = pad_packed_sequence(out, batch_first=True)
 			# import pdb; pdb.set_trace()
 			outs.append(output)
+			idx += 1
 		# import pdb; pdb.set_trace()
 		all_outs = torch.cat(outs, dim = 2)
 		# import pdb; pdb.set_trace()
@@ -66,9 +80,9 @@ class Model(nn.Module):
 		ro = self.tan(self.ro(all_outs))
 		pi = self.softmax(self.pi(all_outs))
 		# import pdb; pdb.set_trace()
-		# print(pred.shape)
 
-		return e,ro,pi,mu,sigma
+
+		return e,ro,pi,mu,sigma, final_hc_lst
 
 
 # if __name__ == '__main__':
